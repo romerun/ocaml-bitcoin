@@ -1,10 +1,10 @@
 (********************************************************************************)
-(*	Bitcoin_ocamlnet.ml
+(*	Counterparty_ocamlnet.ml
 	Copyright (c) 2012 Dario Teixeira (dario.teixeira@yahoo.com)
 *)
 (********************************************************************************)
 
-(**	Offers an implementation of a {!Bitcoin.HTTPCLIENT} using Ocamlnet's
+(**	Offers an implementation of a {!Counterparty.HTTPCLIENT} using Ocamlnet's
 	[Http_client].
 *)
 
@@ -13,7 +13,7 @@
 (**	{1 Public modules}							*)
 (********************************************************************************)
 
-module Httpclient: Bitcoin.HTTPCLIENT with type 'a Monad.t = 'a =
+module Httpclient: Counterparty.HTTPCLIENT with type 'a Monad.t = 'a =
 struct
 	module Monad =
 	struct

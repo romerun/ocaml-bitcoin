@@ -1,10 +1,10 @@
 (********************************************************************************)
-(*	Bitcoin_ocsigen.ml
+(*	Counterparty_ocsigen.ml
 	Copyright (c) 2012 Dario Teixeira (dario.teixeira@yahoo.com)
 *)
 (********************************************************************************)
 
-(**	Offers an implementation of a {!Bitcoin.HTTPCLIENT} using Ocsigen's
+(**	Offers an implementation of a {!Counterparty.HTTPCLIENT} using Ocsigen's
 	[Ocsigen_http_client].
 *)
 
@@ -20,7 +20,7 @@ exception No_response
 (**	{1 Public modules}							*)
 (********************************************************************************)
 
-module Httpclient: Bitcoin.HTTPCLIENT with type 'a Monad.t = 'a Lwt.t =
+module Httpclient: Counterparty.HTTPCLIENT with type 'a Monad.t = 'a Lwt.t =
 struct
 	module Monad = Lwt
 
@@ -38,7 +38,7 @@ struct
 				~content_length:(Int64.of_int (String.length request))
 				~http_method:Ocsigen_http_frame.Http_header.POST
 				~inet_addr
-				~host
+                ~host
 				~port
 				~uri
 				() ()

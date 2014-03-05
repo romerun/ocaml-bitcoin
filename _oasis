@@ -1,127 +1,127 @@
 OASISFormat:		0.3
-Name:			OCaml-bitcoin
+Name:			OCaml-counterparty
 Version:		1.1.1
-Synopsis:		Library offering an OCaml interface to the official Bitcoin client API
+Synopsis:		Library offering an OCaml interface to the official Counterparty client API
 Authors:		Dario Teixeira
 License:		GPL-2.0
 BuildTools:		ocamlbuild, ocamldoc
 Plugins:		META (0.3), DevFiles (0.3)
 
 Flag "ocsigen"
-  Description:		Build auxiliary library "bitcoin_ocsigen" (implements an HTTP client using Ocsigenserver's Ocsigen_http_client)
+  Description:		Build auxiliary library "counterparty_ocsigen" (implements an HTTP client using Ocsigenserver's Ocsigen_http_client)
   Default:		false
 
 Flag "ocamlnet"
-  Description:		Build auxiliary library "bitcoin_ocamlnet" (implements an HTTP client using Ocamlnet's Netclient)
+  Description:		Build auxiliary library "counterparty_ocamlnet" (implements an HTTP client using Ocamlnet's Netclient)
   Default:		false
 
 Flag "cohttp"
-  Description:          Build auxiliary library "bitcoin_cohttp" (implements an HTTP client using Cohttp's Cohttp_lwt_unix.Client)
+  Description:          Build auxiliary library "counterparty_cohttp" (implements an HTTP client using Cohttp's Cohttp_lwt_unix.Client)
   Default:              false
 
 Flag "ocurl"
-  Description:          Build auxiliary library "bitcoin_ocurl" (implements an HTTP client using OCurl)
+  Description:          Build auxiliary library "counterparty_ocurl" (implements an HTTP client using OCurl)
   Default:              false
 
-Library "bitcoin"
+Library "counterparty"
   Path:			src
-  Modules:		Bitcoin
+  Modules:		Counterparty
   BuildDepends:		cryptokit, yojson
 
-Library "bitcoin_ocsigen"
+Library "counterparty_ocsigen"
   Build$:		flag(ocsigen)
   Install$:		flag(ocsigen)
   Path:			src
-  Modules:		Bitcoin_ocsigen
-  BuildDepends:		threads, lwt, ocsigenserver, bitcoin
-  FindlibParent:	bitcoin
+  Modules:		Counterparty_ocsigen
+  BuildDepends:		threads, lwt, ocsigenserver, counterparty
+  FindlibParent:	counterparty
   FindlibName:		ocsigen
 
-Library "bitcoin_ocamlnet"
+Library "counterparty_ocamlnet"
   Build$:		flag(ocamlnet)
   Install$:		flag(ocamlnet)
   Path:			src
-  Modules:		Bitcoin_ocamlnet
-  BuildDepends:		netclient, bitcoin
-  FindlibParent:	bitcoin
+  Modules:		Counterparty_ocamlnet
+  BuildDepends:		netclient, counterparty
+  FindlibParent:	counterparty
   FindlibName:		ocamlnet
 
-Library "bitcoin_cohttp"
+Library "counterparty_cohttp"
   Build$:               flag(cohttp)
   Install$:             flag(cohttp)
   Path:                 src
-  Modules:              Bitcoin_cohttp
-  BuildDepends:         cohttp.lwt, bitcoin
-  FindlibParent:        bitcoin
+  Modules:              Counterparty_cohttp
+  BuildDepends:         cohttp.lwt, counterparty
+  FindlibParent:        counterparty
   FindlibName:          cohttp
 
-Library "bitcoin_ocurl"
+Library "counterparty_ocurl"
   Build$:               flag(ocurl)
   Install$:             flag(ocurl)
   Path:                 src
-  Modules:              Bitcoin_ocurl
-  BuildDepends:         curl, bitcoin
-  FindlibParent:        bitcoin
+  Modules:              Counterparty_ocurl
+  BuildDepends:         curl, counterparty
+  FindlibParent:        counterparty
   FindlibName:          ocurl
 
-Document "bitcoin-full-api"
+Document "counterparty-full-api"
   Build$:		flag(ocamlnet) && flag(ocsigen) && flag(cohttp) && flag(ocurl)
-  Title:		API reference for OCaml-bitcoin
+  Title:		API reference for OCaml-counterparty
   Type:			ocamlbuild (0.3)
   Install:		true
   InstallDir:		$htmldir
   BuildTools:		ocamldoc
   XOCamlbuildPath:	src
-  XOCamlbuildLibraries:	bitcoin, bitcoin.ocsigen, bitcoin.ocamlnet, bitcoin.cohttp
+  XOCamlbuildLibraries:	counterparty, counterparty.ocsigen, counterparty.ocamlnet, counterparty.cohttp
 
-Document "bitcoin-ocamlnet-api"
+Document "counterparty-ocamlnet-api"
   Build$:		flag(ocamlnet) && !flag(ocsigen) && !flag(cohttp) && !flag(ocurl)
-  Title:		API reference for OCaml-bitcoin
+  Title:		API reference for OCaml-counterparty
   Type:			ocamlbuild (0.3)
   Install:		true
   InstallDir:		$htmldir
   BuildTools:		ocamldoc
   XOCamlbuildPath:	src
-  XOCamlbuildLibraries:	bitcoin, bitcoin.ocamlnet
+  XOCamlbuildLibraries:	counterparty, counterparty.ocamlnet
 
-Document "bitcoin-ocsigen-api"
+Document "counterparty-ocsigen-api"
   Build$:		!flag(ocamlnet) && flag(ocsigen) && !flag(cohttp) && !flag(ocurl)
-  Title:		API reference for OCaml-bitcoin
+  Title:		API reference for OCaml-counterparty
   Type:			ocamlbuild (0.3)
   Install:		true
   InstallDir:		$htmldir
   BuildTools:		ocamldoc
   XOCamlbuildPath:	src
-  XOCamlbuildLibraries:	bitcoin, bitcoin.ocsigen
+  XOCamlbuildLibraries:	counterparty, counterparty.ocsigen
 
-Document "bitcoin-cohttp-api"
+Document "counterparty-cohttp-api"
   Build$:		!flag(ocamlnet) && !flag(ocsigen) && flag(cohttp) && !flag(ocurl)
-  Title:		API reference for OCaml-bitcoin
+  Title:		API reference for OCaml-counterparty
   Type:			ocamlbuild (0.3)
   Install:		true
   InstallDir:		$htmldir
   BuildTools:		ocamldoc
   XOCamlbuildPath:	src
-  XOCamlbuildLibraries:	bitcoin, bitcoin.cohttp
+  XOCamlbuildLibraries:	counterparty, counterparty.cohttp
 
-Document "bitcoin-api"
+Document "counterparty-api"
   Build$:		!flag(ocamlnet) && !flag(ocsigen) && !flag(cohttp) && !flag(ocurl)
-  Title:		API reference for OCaml-bitcoin
+  Title:		API reference for OCaml-counterparty
   Type:			ocamlbuild (0.3)
   Install:		true
   InstallDir:		$htmldir
   BuildTools:		ocamldoc
   XOCamlbuildPath:	src
-  XOCamlbuildLibraries:	bitcoin
+  XOCamlbuildLibraries:	counterparty
 
 Executable test
-  Build$:		flag(tests) && flag(ocurl)
+  Build$:		flag(tests) && flag(ocamlnet)
   Path:			test
   MainIs:		test.ml
   Install:		false
-  BuildDepends:		oUnit (>= 1.1.0), bitcoin.ocurl
+  BuildDepends:		oUnit (>= 1.1.0), counterparty.ocamlnet
   CompiledObject:	best
 
 Test main
-  Run$:			flag(tests) && flag(ocurl)
+  Run$:			flag(tests) && flag(ocamlnet)
   Command:		$test

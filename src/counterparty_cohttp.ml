@@ -1,10 +1,10 @@
 (********************************************************************************)
-(*	Bitcoin_cohttp.ml
+(*	Counterparty_cohttp.ml
 	Copyright (c) 2013 Vincent Bernardoff (vb@luminar.eu.org)
 *)
 (********************************************************************************)
 
-(**	Offers an implementation of a {!Bitcoin.HTTPCLIENT} using Cohttp's
+(**	Offers an implementation of a {!Counterparty.HTTPCLIENT} using Cohttp's
 	[Cohttp_lwt_unix.Client].
 *)
 
@@ -23,7 +23,7 @@ module C = Cohttp
 module CU = Cohttp_lwt_unix
 module CB = Cohttp_lwt_body
 
-module Httpclient: Bitcoin.HTTPCLIENT with type 'a Monad.t = 'a Lwt.t =
+module Httpclient: Counterparty.HTTPCLIENT with type 'a Monad.t = 'a Lwt.t =
 struct
   module Monad = Lwt
 
@@ -33,10 +33,8 @@ struct
     let headers = C.Header.of_list headers in
     let uri = Uri.make ~scheme:"http" ~host ~port ~path:uri () in
     Lwt.try_bind
-      (fun () -> CU.Client.call ~chunked:false ~headers ?body:(CB.body_of_string request) `POST uri)
-      (function
-        | Some (_, b) -> CB.string_of_body b
-        | None -> Lwt.fail No_response)
+      (fun () -> CU.Client.call ~chunked:false ~headers ?body:(Some (CB.of_string request)) `POST uri)
+      (fun (_, b) -> CB.to_string b)
       (fun exn ->
          Lwt_io.printf "Cohttp_lwt_unix.Client.call: caught %s\n" (Printexc.to_string exn) >>= fun () ->
          Lwt.fail exn)

@@ -1,10 +1,10 @@
 (********************************************************************************)
-(*Bitcoin_ocurl.ml
+(*Counterparty_ocurl.ml
   Copyright (c) 2013 Vincent Bernardoff (vb@luminar.eu.org)
 *)
 (********************************************************************************)
 
-(**Offers an implementation of a {!Bitcoin.HTTPCLIENT} using OCurl's
+(**Offers an implementation of a {!Counterparty.HTTPCLIENT} using OCurl's
    [Http_client].
 *)
 
@@ -13,7 +13,7 @@
 (** {1 Public modules}                                                          *)
 (********************************************************************************)
 
-module Httpclient: Bitcoin.HTTPCLIENT with type 'a Monad.t = 'a =
+module Httpclient: Counterparty.HTTPCLIENT with type 'a Monad.t = 'a =
 struct
   module Monad =
   struct
