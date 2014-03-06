@@ -21,10 +21,20 @@ exception Httpclient_error of exn
 type tx_hex_t = string
 type tx_id_t = string
 type address_t = string
+type event_t = string
 type quantity_t = int64
+type block_index_t = int
 type asset_t = XCP | BTC | ASSET of string
 let string_of_asset = function XCP -> "XCP" | BTC -> "BTC" | ASSET s -> s
+let asset_of_string = function "XCP" -> XCP | "BTC" -> BTC | s -> ASSET s
 type assoc_t = (string * Yojson.Safe.json) list
+
+type order_by_t = string
+type order_dir_t = ASC | DESC
+let string_of_order_dir = function ASC -> "asc" | DESC -> "desc"
+
+type filterop_t = AND | OR
+let string_of_filterop = function AND -> "and" | OR -> "or"
 
 type conn_t =
 	{
@@ -40,6 +50,20 @@ type conn_t =
 (********************************************************************************)
 (**	{1 Public module types}							*)
 (********************************************************************************)
+
+module Filter = struct
+  type field_t = string
+  type value_t = string
+  type op_t = EQ | NE | LT | GT | LE | GE
+  type t = field_t*op_t*value_t
+
+  let string_of_op = function EQ -> "==" | NE -> "!=" | LT -> "<" | GT -> ">" | LE -> "<=" | GE -> ">="
+  let json_of_filter (filter,op,value) = `Assoc [("filter",`String filter);("op",`String (string_of_op op));("value",`String value)];
+end
+
+module Credit = struct
+  type t = {asset: asset_t; address: address_t; event: event_t; amount: quantity_t; block_index: block_index_t}
+end
 
 module type HTTPCLIENT =
 sig
@@ -76,6 +100,7 @@ sig
 
 	val create_send: ?conn:conn_t -> source:address_t -> destination:address_t -> asset_t -> quantity_t -> tx_hex_t monad_t
 	val transmit: ?conn:conn_t -> ?is_signed:bool -> tx_hex_t -> tx_id_t monad_t
+    val get_credits: ?conn:conn_t -> ?filter:Filter.t -> ?order_by:order_by_t -> ?order_dir:order_dir_t -> ?filterop: filterop_t -> unit -> (Credit.t list) monad_t
 end
 
 
@@ -129,8 +154,9 @@ struct
 	(**	{3 Low-level functions}						*)
 	(************************************************************************)
 
-	let invoke ?conn ?(params = []) methode =
-        let sort_assoc l = List.sort (fun a b -> compare (fst a) (fst b)) l in
+    let sort_assoc l = List.sort (fun a b -> compare (fst a) (fst b)) l
+
+	let invoke ?conn ~params methode =
 		begin match (conn, Connection.default) with
 			| (Some conn, _)    -> Monad.return conn
 			| (None, Some conn) -> Monad.return conn
@@ -144,7 +170,7 @@ struct
 		let request = `Assoc
 			[
 			("method", `String methode);
-			("params", `List params);
+			("params", params);
 			("id", `Int 0);
 			] in
 		let xrequest = Yojson.Safe.to_string request in
@@ -248,6 +274,18 @@ struct
 		| `Assoc xs -> xs
 		| _	    -> assert false
 
+	let to_sorted_assoc = function
+		| `Assoc xs -> sort_assoc xs
+		| _	    -> assert false
+
+	let (=|=) x f = match x with
+		| Some x -> f x
+		| None	 -> `Null
+
+    let to_list_result assoc = 
+      match to_sorted_assoc assoc with
+        [("id",_);("jsonrpc",_);("result",`List assocs)] -> assocs
+      | _ -> assert false
 
 	(************************************************************************)
 	(**	{3 Conversion from OCaml values to JSON values}			*)
@@ -287,10 +325,28 @@ struct
 		| _			   -> invalid_arg fname
 
 	let create_send ?conn ~source ~destination asset quantity =
-	  let params = [of_string source; of_string destination; of_string (string_of_asset asset); of_quantity (Int64.to_string quantity)] in
+	  let params = `List [of_string source; of_string destination; of_string (string_of_asset asset); of_quantity (Int64.to_string quantity)] in
 	  invoke ?conn ~params "create_send" >|= to_string
 
     let transmit ?conn ?(is_signed=false) tx_hex =
-      let params = [of_string tx_hex; of_bool is_signed] in
+      let params = `List [of_string tx_hex; of_bool is_signed] in
       invoke ?conn ~params "transmit" >|= to_string
+
+    let get_credits ?conn ?filter ?order_by ?order_dir ?filterop () =
+      let to_result assoc = 
+        let assocs = to_list_result assoc in
+        List.map (fun assoc ->
+          match to_sorted_assoc assoc with
+            [("address", `String address);("amount", `Intlit amount);("asset", `String asset);("block_index", `Int block_index);("calling_function", `Null);("event", `String event)] ->
+            { Credit.address=address; amount=Int64.of_string amount; asset=asset_of_string asset; block_index=block_index; event=event }
+          | _ -> assert false
+        ) assocs
+      in
+      let params = `Assoc [
+                      ("filter", filter =|= Filter.json_of_filter);
+                      ("order_by", order_by =|= of_string);
+                      ("order_dir", order_dir =|= (fun x -> of_string (string_of_order_dir x)));
+                      ("filterop", filterop =|= (fun x -> of_string (string_of_filterop x)));
+                    ] in
+      invoke ?conn ~params "get_credits" >|= to_result
 end
