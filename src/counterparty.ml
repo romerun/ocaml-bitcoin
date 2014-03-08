@@ -21,8 +21,8 @@ exception Httpclient_error of exn
 type tx_hex_t = string
 type tx_id_t = string
 type address_t = string
-type event_t = string
 type quantity_t = int64
+type amount_t = int64
 type block_index_t = int
 type asset_t = XCP | BTC | ASSET of string
 let string_of_asset = function XCP -> "XCP" | BTC -> "BTC" | ASSET s -> s
@@ -58,11 +58,11 @@ module Filter = struct
   type t = field_t*op_t*value_t
 
   let string_of_op = function EQ -> "==" | NE -> "!=" | LT -> "<" | GT -> ">" | LE -> "<=" | GE -> ">="
-  let json_of_filter (filter,op,value) = `Assoc [("filter",`String filter);("op",`String (string_of_op op));("value",`String value)];
+  let json_of_filter (field,op,value) = `Assoc [("field",`String field);("op",`String (string_of_op op));("value",`String value)];
 end
 
 module Credit = struct
-  type t = {asset: asset_t; address: address_t; event: event_t; amount: quantity_t; block_index: block_index_t}
+  type t = {asset: asset_t; address: address_t; amount: amount_t; block_index: block_index_t; event: tx_id_t option}
 end
 
 module type HTTPCLIENT =
@@ -100,7 +100,7 @@ sig
 
 	val create_send: ?conn:conn_t -> source:address_t -> destination:address_t -> asset_t -> quantity_t -> tx_hex_t monad_t
 	val transmit: ?conn:conn_t -> ?is_signed:bool -> tx_hex_t -> tx_id_t monad_t
-    val get_credits: ?conn:conn_t -> ?filter:Filter.t -> ?order_by:order_by_t -> ?order_dir:order_dir_t -> ?filterop: filterop_t -> unit -> (Credit.t list) monad_t
+    val get_credits: ?conn:conn_t -> ?filters:Filter.t list -> ?order_by:order_by_t -> ?order_dir:order_dir_t -> ?filterop: filterop_t -> unit -> (Credit.t list) monad_t
 end
 
 
@@ -170,10 +170,12 @@ struct
 		let request = `Assoc
 			[
 			("method", `String methode);
+            ("jsonrpc", `String "2.0");
 			("params", params);
 			("id", `Int 0);
 			] in
 		let xrequest = Yojson.Safe.to_string request in
+        (*Printf.eprintf "%s\n" xrequest; flush_all ();*)
 		Monad.catch
 			(fun () ->
 				Httpclient.post_string
@@ -181,35 +183,32 @@ struct
 					~inet_addr:conn.inet_addr
                     ~host:conn.host
 					~port:conn.port
-					~uri:"/"
+					~uri:"/api/"
 					xrequest)
 			(function exc -> Monad.fail (Httpclient_error exc)) >>= fun xresponse ->
 		match Yojson.Safe.from_string xresponse with
 			| `Assoc assoc ->
+               (*Printf.eprintf "*%s*\n" (Yojson.Safe.to_string (`Assoc (sort_assoc assoc))); flush_all ();*)
                begin match (sort_assoc assoc) with
-                     | [("error", error); ("id", _); ("result", result)] ->
-				        begin match (result, error) with
-					          | (x, `Null) ->
-						         Monad.return x
-					          | (`Null, `Assoc assoc) ->
+                     | [("error", `Assoc assoc); ("id", _); ("jsonrpc", _); ] -> 
+                        begin match (sort_assoc assoc) with
+                              | [("code", `Int code); ("message", `String message)] ->
+                                 let exc = Counterparty_error (code, "", message)
+						         in Monad.fail exc
+                              | [("code", `Int code); ("data", `Assoc assoc); ("message", _)] ->
                                  begin match (sort_assoc assoc) with
-                                       | [("code", `Int code); ("message", `String message)] ->
-                                           let exc = Counterparty_error (code, "", message)
-						                   in Monad.fail exc
-                                       | [("code", `Int code); ("data", `Assoc assoc); ("message", _)] ->
-                                           begin match (sort_assoc assoc) with
-                                                 | [("args", _); ("message", `String message);("type", `String error_type)] ->
-						                            let exc = Counterparty_error (code, error_type, message)
-						                            in Monad.fail exc
-                                                 | _ -> assert false
-                                           end
+                                       | [("args", _); ("message", `String message);("type", `String error_type)] ->
+						                  let exc = Counterparty_error (code, error_type, message)
+						                  in Monad.fail exc
                                        | _ -> assert false
                                  end
-					          | (_, _) ->
-                                 Printf.eprintf "%s\n" xresponse; 
-					             assert false
-				        end
-                     | _  -> assert false
+                              | _ -> assert false
+                        end
+                     | [("id", _); ("jsonrpc", _); ("result",x)] ->   
+						Monad.return x
+                     | _  -> 
+                        (*Printf.eprintf "%s\n" xresponse;*)
+                        assert false
                end
 			| _ -> assert false
 
@@ -242,6 +241,12 @@ struct
 		| `Null -> ()
 		| _	-> assert false
 
+	let to_option f = (fun x ->
+        match x with
+		| `Null -> None
+		| _	-> Some (f x)
+    )
+
 	let to_int = function
 		| `Int x -> x
 		| _	 -> assert false
@@ -263,7 +268,7 @@ struct
 		| `String x -> x
 		| _	    -> assert false
 
-	let to_amount x =
+	let to_amount x =      
 		to_float x |> amount_of_float
 
 	let to_list f = function
@@ -281,11 +286,6 @@ struct
 	let (=|=) x f = match x with
 		| Some x -> f x
 		| None	 -> `Null
-
-    let to_list_result assoc = 
-      match to_sorted_assoc assoc with
-        [("id",_);("jsonrpc",_);("result",`List assocs)] -> assocs
-      | _ -> assert false
 
 	(************************************************************************)
 	(**	{3 Conversion from OCaml values to JSON values}			*)
@@ -332,21 +332,23 @@ struct
       let params = `List [of_string tx_hex; of_bool is_signed] in
       invoke ?conn ~params "transmit" >|= to_string
 
-    let get_credits ?conn ?filter ?order_by ?order_dir ?filterop () =
-      let to_result assoc = 
-        let assocs = to_list_result assoc in
-        List.map (fun assoc ->
-          match to_sorted_assoc assoc with
-            [("address", `String address);("amount", `Intlit amount);("asset", `String asset);("block_index", `Int block_index);("calling_function", `Null);("event", `String event)] ->
-            { Credit.address=address; amount=Int64.of_string amount; asset=asset_of_string asset; block_index=block_index; event=event }
-          | _ -> assert false
-        ) assocs
+    let get_credits ?conn ?filters ?order_by ?order_dir ?(filterop=AND) () =
+      let to_result assocs = 
+        to_list
+          (fun assoc ->
+           let yyy = to_sorted_assoc assoc in
+           (*Printf.eprintf "#%s#" (Yojson.Safe.to_string (`Assoc yyy));*)
+           match to_sorted_assoc assoc with
+           | [("address", `String address);("amount", amount);("asset", `String asset);("block_index", `Int block_index);("calling_function", _);("event", event)] ->
+              { Credit.address=address; amount=to_int64 amount; asset=asset_of_string asset; block_index=block_index; event = to_option to_string event }
+           | _ -> assert false
+          ) assocs
       in
       let params = `Assoc [
-                      ("filter", filter =|= Filter.json_of_filter);
+                      ("filters", filters =|= (fun l -> `List (List.map (fun filter -> Filter.json_of_filter filter) l)));
                       ("order_by", order_by =|= of_string);
                       ("order_dir", order_dir =|= (fun x -> of_string (string_of_order_dir x)));
-                      ("filterop", filterop =|= (fun x -> of_string (string_of_filterop x)));
+                      ("filterop", of_string (string_of_filterop filterop));
                     ] in
       invoke ?conn ~params "get_credits" >|= to_result
 end

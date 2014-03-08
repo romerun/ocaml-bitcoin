@@ -17,8 +17,8 @@ struct
 	let default = Some
 		{
 		inet_addr = Unix.inet_addr_loopback;
-        host = "127.0.0.1";
-		port = 14000;
+        host = "localhost";
+		port = 4000;
 		username = "rpcuser";
 		password = "graffitiseis";
 		}
@@ -62,7 +62,7 @@ let test_error global =
     assert_failure "Error json parsing"
   with
   | Counterparty.Counterparty_error(-32000, "SendError", "insufficient funds") -> ()
-  | _ -> assert_failure "Error json parsing"
+(*  | _ -> assert_failure "Error json parsing"*)
 
 let test_transmit global =
   try
@@ -71,7 +71,15 @@ let test_transmit global =
     eprintf "sent - %s\n" tx_id
   with
   | Counterparty.Counterparty_error(-32000, "BalanceError", _) -> ()
-  | _ -> assert_failure "Error json parsing"
+(*  | _ -> assert_failure "Error json parsing"*)
+
+let test_get_credits global =
+  try
+    let credits = Testcoin.get_credits ~filters:[("asset",Counterparty.Filter.EQ,"CAKE")] () in
+    eprintf "xxx\n"
+  with
+  | Counterparty.Counterparty_error(-32000, "BalanceError", _) -> ()
+(*  | _ -> assert_failure "Error json parsing"*)
     
 
 (********************************************************************************)
@@ -82,6 +90,7 @@ let suite = "OCaml-couterparty" >:::
 	[
 	  "test_error" >:: !!test_error;
       "test_transmit" >:: !!test_transmit;
+      "test_get_credits" >:: !!test_get_credits;
 	]
 
 let _ =
