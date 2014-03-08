@@ -336,8 +336,8 @@ struct
       let to_result assocs = 
         to_list
           (fun assoc ->
-           let yyy = to_sorted_assoc assoc in
-           (*Printf.eprintf "#%s#" (Yojson.Safe.to_string (`Assoc yyy));*)
+           (*let yyy = to_sorted_assoc assoc in
+           Printf.eprintf "#%s#" (Yojson.Safe.to_string (`Assoc yyy));*)
            match to_sorted_assoc assoc with
            | [("address", `String address);("amount", amount);("asset", `String asset);("block_index", `Int block_index);("calling_function", _);("event", event)] ->
               { Credit.address=address; amount=to_int64 amount; asset=asset_of_string asset; block_index=block_index; event = to_option to_string event }
