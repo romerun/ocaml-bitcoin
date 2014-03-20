@@ -62,7 +62,7 @@ module Filter = struct
 end
 
 module Credit = struct
-  type t = {asset: asset_t; address: address_t; amount: amount_t; block_index: block_index_t; event: tx_id_t option}
+  type t = {asset: asset_t; address: address_t; block_index: block_index_t; event: tx_id_t option; quantity: quantity_t; }
 end
 
 module type HTTPCLIENT =
@@ -339,8 +339,8 @@ struct
            (*let yyy = to_sorted_assoc assoc in
            Printf.eprintf "#%s#" (Yojson.Safe.to_string (`Assoc yyy));*)
            match to_sorted_assoc assoc with
-           | [("address", `String address);("amount", amount);("asset", `String asset);("block_index", `Int block_index);("calling_function", _);("event", event)] ->
-              { Credit.address=address; amount=to_int64 amount; asset=asset_of_string asset; block_index=block_index; event = to_option to_string event }
+           | [("address", `String address);("asset", `String asset);("block_index", `Int block_index);("calling_function", _);("event", event);("quantity", quantity)] ->
+              { Credit.address=address; asset=asset_of_string asset; block_index=block_index; event = to_option to_string event; quantity=to_int64 quantity }
            | _ -> assert false
           ) assocs
       in
