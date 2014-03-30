@@ -341,6 +341,9 @@ struct
            match to_sorted_assoc assoc with
            | [("address", `String address);("asset", `String asset);("block_index", `Int block_index);("calling_function", _);("event", event);("quantity", quantity)] ->
               { Credit.address=address; asset=asset_of_string asset; block_index=block_index; event = to_option to_string event; quantity=to_int64 quantity }
+           | [("address", `String address);("amount", quantity);("asset", `String asset);("block_index", `Int block_index);("calling_function", _);("event", event)] -> 
+              (*backward compat 0.6.8 and downwards*)
+              { Credit.address=address; asset=asset_of_string asset; block_index=block_index; event = to_option to_string event; quantity=to_int64 quantity }
            | _ -> assert false
           ) assocs
       in
